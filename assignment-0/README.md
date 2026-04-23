@@ -26,5 +26,11 @@ solana-test-validator
 anchor deploy
 ```
 
+## 🌐 Deployment
+
+The program is deployed on **Solana Devnet**:
+- **Program ID**: `BM6SxJ3W35MJRuiTZmTDh9r1CaExtafcVjYsp8Tvtj8v`
+- **Explorer**: [Solana Explorer](https://explorer.solana.com/address/BM6SxJ3W35MJRuiTZmTDh9r1CaExtafcVjYsp8Tvtj8v?cluster=devnet)
+
 ---
 [Return to Main README](../README.md)
