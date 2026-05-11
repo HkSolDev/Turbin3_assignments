@@ -3,23 +3,27 @@ use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     program_pack::Pack,
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
-    system_instruction::create_account, // Back to the standard way!
-
+    system_instruction::create_account,
     transaction::Transaction,
 };
 use spl_associated_token_account::{
-    get_associated_token_address, instruction::create_associated_token_account,
+    get_associated_token_address_with_program_id, instruction::create_associated_token_account,
 };
 
-use spl_token::{
-    ID as TOKEN_PROGRAM_ID,                          // Standard way to get the ID
-    instruction::{initialize_mint, mint_to_checked}, // Standard Token program
-    state::{Account, Mint},
+use mpl_token_metadata::{
+    ID as METAPLEX_PROGRAM_ID, instructions::CreateMetadataAccountV3Builder, types::DataV2,
 };
+use spl_token::{
+    ID as TOKEN_PROGRAM_ID,
+    instruction::{initialize_mint, mint_to_checked},
+    state::Mint,
+};
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("--- Starting Program ---"); // ADD THIS
+    println!("--- Starting Token-2022 Metadata Program ---");
     let fee_payer = Keypair::new();
     let mint = Keypair::new();
 
@@ -28,42 +32,79 @@ async fn main() -> Result<()> {
         CommitmentConfig::processed(),
     );
 
+    // 1. Airdrop
     println!("Requesting Airdrop for: {}...", fee_payer.pubkey());
     let airdrop_signature = client
-        .request_airdrop(&fee_payer.pubkey(), 2_000_000_000) // 2 SOL in lamports
+        .request_airdrop(&fee_payer.pubkey(), 2_000_000_000)
         .await?;
-
-    println!("Airdrop requested. Waiting for confirmation...");
-    loop {
-        let confirmed = client.confirm_transaction(&airdrop_signature).await?;
-        if confirmed {
-            break;
-        }
-    }
+    client.confirm_transaction(&airdrop_signature).await?;
     println!("Airdrop Confirmed!");
 
-    println!("Fetching latest blockhash and rent...");
-    let latest_blockhash = client
-        .get_latest_blockhash()
-        .await
-        .expect("Did not able to get hte latest block-hash");
+    // 2. Define Metadata
+    let name = "Solana Dev Token".to_string();
+    let symbol = "SDT".to_string();
+    let uri = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSynmapbgNkV8W_3GOc9GasCnHI5m3rCdN-iw&s".to_string();
+
+    // let metadata = TokenMetadata {
+    //     name: name.clone(),
+    //     symbol: symbol.clone(),
+    //     uri: uri.clone(),
+    //     update_authority: Some(fee_payer.pubkey()).try_into()?,
+    //     mint: mint.pubkey(),
+    //     ..Default::default()
+    // };
+    // 3. Calculate Space and Rent
+    // Base Mint (82) + Padding (83) + Extension MetadataPointer (68) + Metadata size
+    let mint_len = Mint::LEN;
+    // let metadata_len = VariableLenPack::get_packed_len(&metadata)?;
+    let total_len = mint_len;
 
     let mint_rent = client
-        .get_minimum_balance_for_rent_exemption(82)
-        .await
-        .expect("error in get the rent");
+        .get_minimum_balance_for_rent_exemption(total_len)
+        .await?;
 
-    println!("Building and sending Mint transaction...");
+    println!("Building and sending Mint + Metadata transaction...");
+    let latest_blockhash = client.get_latest_blockhash().await?;
 
+    let (metadata_pda, _bump) = Pubkey::find_program_address(
+        &[
+            b"metadata",
+            METAPLEX_PROGRAM_ID.as_ref(),
+            mint.pubkey().as_ref(),
+        ],
+        &METAPLEX_PROGRAM_ID,
+    );
+
+    let create_metadata_ix = CreateMetadataAccountV3Builder::new()
+        .metadata(metadata_pda)
+        .mint(mint.pubkey())
+        .mint_authority(fee_payer.pubkey())
+        .payer(fee_payer.pubkey())
+        .update_authority(fee_payer.pubkey(), true) // The 'true' means they can update it later
+        .data(DataV2 {
+            name: name.clone(),
+            symbol: symbol.clone(),
+            uri: uri.clone(),
+            seller_fee_basis_points: 0,
+            creators: None,
+            collection: None,
+            uses: None,
+        })
+        .is_mutable(true)
+        .instruction();
+
+    // 4. Build Instructions
     let tx = Transaction::new_signed_with_payer(
         &[
+            // Allocate space
             create_account(
                 &fee_payer.pubkey(),
                 &mint.pubkey(),
                 mint_rent,
-                Mint::LEN as u64,
+                total_len as u64,
                 &TOKEN_PROGRAM_ID,
             ),
+            // Initialize Mint
             initialize_mint(
                 &TOKEN_PROGRAM_ID,
                 &mint.pubkey(),
@@ -71,30 +112,26 @@ async fn main() -> Result<()> {
                 Some(&fee_payer.pubkey()),
                 9,
             )?,
+            create_metadata_ix,
         ],
         Some(&fee_payer.pubkey()),
         &[&fee_payer, &mint],
         latest_blockhash,
     );
 
-    let transaction_signature = client.send_and_confirm_transaction(&tx).await?;
-    println!("Mint Transaction Confirmed!");
+    client.send_and_confirm_transaction(&tx).await?;
+    println!("Mint and Metadata Initialized!");
 
-    let mint_acc = client.get_account(&mint.pubkey()).await?;
+    // // 5. Create ATA
+    println!("Creating ATA...");
+    let ata_address = get_associated_token_address_with_program_id(
+        &fee_payer.pubkey(),
+        &mint.pubkey(),
+        &TOKEN_PROGRAM_ID,
+    );
 
-    let mint_data = Mint::unpack_unchecked(&mint_acc.data)?;
-
-    println!("Mint Address: {}", mint.pubkey());
-    println!("Mint Account: {:#?}", mint_data);
-    println!("\nTransaction Signature: {}", transaction_signature);
-
-    let latest_blockhash = client
-        .get_latest_blockhash()
-        .await
-        .expect("Did not able to get hte latest block-hash");
-
-    println!("Building and sending ATA transaction...");
-    let tx = Transaction::new_signed_with_payer(
+    let latest_blockhash = client.get_latest_blockhash().await?;
+    let ata_tx = Transaction::new_signed_with_payer(
         &[create_associated_token_account(
             &fee_payer.pubkey(),
             &fee_payer.pubkey(),
@@ -105,53 +142,34 @@ async fn main() -> Result<()> {
         &[&fee_payer],
         latest_blockhash,
     );
+    client.send_and_confirm_transaction(&ata_tx).await?;
+    println!("ATA Created: {}", ata_address);
 
-    let tx_signature = client.send_and_confirm_transaction(&tx).await?;
-    println!("ATA Transaction Confirmed!");
-    let ata_address = get_associated_token_address(&fee_payer.pubkey(), &mint.pubkey());
-    let token_acc = client.get_account(&ata_address).await?;
+    println!("Mint Address: {}", mint.pubkey());
 
-    println!("Unpacking Token Account...");
-    let token_data = Account::unpack(&token_acc.data)?;
-    println!(
-        "Token Account Balance BEFORE minting: {}",
-        token_data.amount
-    );
-
-    println!("\nTransaction Signature: {}", tx_signature);
-
-    let latest_blockHash = client.get_latest_blockhash().await?;
-
-    println!("Building and sending MintTo transaction...");
-    let tx = Transaction::new_signed_with_payer(
+    // 6. Mint Tokens
+    println!("Minting tokens...");
+    let latest_blockhash = client.get_latest_blockhash().await?;
+    let mint_to_tx = Transaction::new_signed_with_payer(
         &[mint_to_checked(
             &TOKEN_PROGRAM_ID,
             &mint.pubkey(),
             &ata_address,
             &fee_payer.pubkey(),
             &[&fee_payer.pubkey()],
-            1000000000000,
+            1_000_000_000, // 1 token
             9,
         )?],
         Some(&fee_payer.pubkey()),
         &[&fee_payer],
-        latest_blockHash,
+        latest_blockhash,
     );
-
-    let mint_tx_signature = client.send_and_confirm_transaction(&tx).await?;
-    println!(
-        "MintTo Transaction Confirmed! Signature: {}",
-        mint_tx_signature
-    );
-
-    println!("Fetching updated Token Account...");
-    let token_acc_final = client.get_account(&ata_address).await?;
-    let token_data_final = Account::unpack(&token_acc_final.data)?;
+    client.send_and_confirm_transaction(&mint_to_tx).await?;
 
     println!("--- FINAL RESULTS ---");
     println!("Mint Address: {}", mint.pubkey());
     println!("ATA Address:  {}", ata_address);
-    println!("Final Balance: {} tokens", token_data_final.amount);
+    println!("Token-2022 Program: {}", METAPLEX_PROGRAM_ID);
     println!("----------------------");
 
     Ok(())
