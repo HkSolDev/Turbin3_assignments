@@ -1,10 +1,7 @@
-
 {
   "name": "Leo",
-  "symbol": LEO,
+  "symbol": "LEO",
   "description": "The king of 🐈",
   "image": "https://raw.githubusercontent.com/HkSolDev/Turbin3_assignments/main/assignment-2/images/leo.jpeg",
-  "attributes": [
-    { "trait_type": "Species", "value": "Lion" }
-  ]
+  "attributes": [{ "trait_type": "Species", "value": "Lion" }]
 }
