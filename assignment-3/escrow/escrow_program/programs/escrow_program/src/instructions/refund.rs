@@ -74,7 +74,7 @@ impl<'info> Refund<'info> {
             ),
             self.vault.amount,
             self.mint_a.decimals,
-        );
+        )?;
 
         close_account(CpiContext::new_with_signer(
             self.token_program.key(),
@@ -84,13 +84,13 @@ impl<'info> Refund<'info> {
                 authority: self.escrow.to_account_info(),
             },
             &signer_seeds,
-        ));
+        ))?;
 
         Ok(())
     }
 }
 
-pub fn handler(ctx: Context<Refund>) -> Result<()> {
+pub fn refund_handler(ctx: Context<Refund>) -> Result<()> {
     ctx.accounts.withdraw_and_close_vault()?;
     Ok(())
 }
