@@ -13,3 +13,4 @@ anyhow = "1.0"
 tokio = { version = "1", features = ["full"] }
 spl-associated-token-account = "2.3.0"
 spl-token-metadata-interface = "1.0.0"
+serde_json = "1.0.149"
