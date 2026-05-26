@@ -21,7 +21,7 @@ pub struct Initialize<'info> {
         associated_token::authority = amm,
         associated_token::token_program = token_program,
     )]
-    pub token_a_account: InterfaceAccount<'info, TokenAccount>,
+    pub vault_a: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init,
@@ -30,7 +30,7 @@ pub struct Initialize<'info> {
         associated_token::authority = amm,
         associated_token::token_program = token_program,
     )]
-    pub token_b_account: InterfaceAccount<'info, TokenAccount>,
+    pub vault_b: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         init,
@@ -64,8 +64,8 @@ impl<'info> Initialize<'info> {
         amm.mint_a = self.mint_a.key();
         amm.mint_b = self.mint_b.key();
         amm.lp_mint = self.lp_mint.key();
-        amm.vault_a = self.token_a_account.key();
-        amm.vault_b = self.token_b_account.key();
+        amm.vault_a = self.vault_a.key();
+        amm.vault_b = self.vault_b.key();
         amm.fee = 30; // 0.3% fee
         amm.bump = bumps.amm;
         amm.lp_mint_bump = bumps.lp_mint;

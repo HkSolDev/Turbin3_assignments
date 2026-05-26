@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-assignment_4 = "AeQkytk9pprRY2AfZgaaJiisH2ZAiu7Mp5Dg75ieacNR"
+assignment_4 = "8VwFfb5WFfgaJVUSPtUC7W2QKYWUwBQyk7VBiYNVBv1E"
 
 [provider]
 cluster = "localnet"
