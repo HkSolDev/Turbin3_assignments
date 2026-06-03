@@ -6,7 +6,7 @@ pub mod state;
 use errors::*;
 use instructions::*;
 
-declare_id!("r1cJDNXs7wi6DaLFq4yW2mMA4jVghDZwcT18Bi8yCZn");
+declare_id!('r1cJDNXs7wi6DaLFq4yW2mMA4jVghDZwcT18Bi8yCZn');
 
 #[program]
 pub mod metaplex_core {
@@ -20,7 +20,7 @@ pub mod metaplex_core {
         let config_bump = ctx.bumps.config;
         let reward_bump = ctx.bumps.reward_mint;
 
-        msg!("Greetings from: {:?}", ctx.program_id);
+        msg!('Greetings from: {:?}', ctx.program_id);
 
         ctx.accounts
             .initialize_handler(reward_point, freeze_period, config_bump, reward_bump)
@@ -42,17 +42,5 @@ pub mod metaplex_core {
 
     pub fn stake(ctx: Context<Stake>) -> Result<()> {
         stake::handler(ctx)
-    }
-
-    pub fn list(ctx: Context<List>, price: u64) -> Result<()> {
-        list::handler(ctx, price)
-    }
-
-    pub fn delist(ctx: Context<Delist>) -> Result<()> {
-        delist::handler(ctx)
-    }
-
-    pub fn buy(ctx: Context<Buy>) -> Result<()> {
-        buy::handler(ctx)
     }
 }

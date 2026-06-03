@@ -15,21 +15,3 @@ pub struct Config {
 pub struct UpdateAuthorityConfig {
     pub authority: Pubkey,
 }
-
-#[account]
-#[derive(InitSpace)]
-pub struct Listing {
-    pub maker: Pubkey,
-    pub price: u64,
-    pub asset: Pubkey,
-    pub bump: u8,
-}
-
-#[account]
-#[derive(InitSpace)]
-pub struct Offer {
-    pub buyer: Pubkey,
-    pub amount: u64,
-    pub asset: Pubkey,
-    pub bump: u8,
-}

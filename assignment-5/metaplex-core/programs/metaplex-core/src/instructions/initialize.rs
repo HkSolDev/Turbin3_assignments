@@ -1,8 +1,10 @@
-use crate::state::{Config, UpdateAuthority}; // Import UpdateAuthority since it's used below
+use crate::errors::ErrorCode;
+use crate::state::Config;
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface}; // Added TokenInterface import
+use anchor_spl::token_interface::{Mint, TokenInterface};
+use mpl_core::accounts::BaseCollectionV1;
 
-#[derive(Accounts)] // Fixed typo: 'dervie' -> 'derive'
+#[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
@@ -10,20 +12,20 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = signer,
-        space = 8 + Config::INIT_SPACE,
-        seeds = [b"byte", signer.key().as_ref()], // Changed 'seed' to 'seeds' (plural)
+        space = Config::DISCRIMINATOR.len() + Config::INIT_SPACE,
+        seeds = [b"config", collection.key().as_ref()], // Changed to match collection-based seeds
         bump
     )]
     pub config: Account<'info, Config>,
 
+    pub collection: Account<'info, BaseCollectionV1>,
+
+    ///CHECK: This is the update authority for the collection, which is used for signing purpose
     #[account(
-        init,
-        payer = signer,
-        space = 8 + UpdateAuthority::INIT_SPACE, // Changed InitSpace to INIT_SPACE (standard constant name)
-        seeds = [b"update_authority", signer.key().as_ref()], // Changed 'seed' to 'seeds'
+        seeds = [b"update_authority", collection.key().as_ref()], // Changed to match collection-based seeds
         bump
     )]
-    pub update_authority: Account<'info, UpdateAuthority>,
+    pub update_authority: UncheckedAccount<'info>,
 
     #[account(
         init,
@@ -31,7 +33,7 @@ pub struct Initialize<'info> {
         mint::decimals = 6,
         mint::authority = config,
         mint::freeze_authority = signer,
-        seeds = [b"reward", signer.key().as_ref()],
+        seeds = [b"reward", collection.key().as_ref()], // Consistent seeds
         bump
     )]
     pub reward_mint: InterfaceAccount<'info, Mint>,
@@ -48,15 +50,13 @@ impl<'info> Initialize<'info> {
         config_bump: u8,
         reward_bump: u8,
     ) -> Result<()> {
-        let config = &mut self.config; // Access via self.config, not self.accounts.config
-        config.authority = self.signer.key(); // Removed & before key() as it returns a Pubkey copy
+        let config = &mut self.config;
+        config.authority = self.signer.key();
 
         config.reward_bump = reward_bump;
         config.bump = config_bump;
         config.rewards_in_basis_points = reward_point;
         config.freeze_period = freeze_period;
-
-        self.update_authority.authority = self.signer.key();
 
         Ok(())
     }
