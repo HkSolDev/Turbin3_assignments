@@ -1,4 +1,4 @@
-use crate::state::UpdateAuthority;
+use crate::state::UpdateAuthorityConfig;
 use anchor_lang::prelude::*;
 use mpl_core::{instructions::CreateCollectionV2CpiBuilder, ID as MPL_CORE_ID};
 
@@ -15,7 +15,7 @@ pub struct CreateCollection<'info> {
         seeds = [b"update_authority", collection.key().as_ref()],
         bump,
     )]
-    pub update_authority: Account<'info, UpdateAuthority>, // Changed from UncheckedAccount<'info, UpdateAuthority> to Account<'info, UpdateAuthority>
+    pub update_authority: Account<'info, UpdateAuthorityConfig>, // Changed from UncheckedAccount<'info, UpdateAuthorityConfig> to Account<'info, UpdateAuthorityConfig>
 
     pub system_program: Program<'info, System>,
 
