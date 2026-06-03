@@ -14,12 +14,10 @@ cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build"]
-
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
-anchor = "0.1.3"
 anchor-lang = "0.31.1"
-mpl-core = "0.12.0"
-spl = "0.4.2"
-
+anchor-spl = "0.31.1"
+mpl-core = {version = "0.11.1" , features=["anchor"] }
+# borsh = "0.10.3" # Explicitly include borsh 0.10 to satisfy Anchor's requirements

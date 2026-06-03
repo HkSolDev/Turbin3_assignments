@@ -19,6 +19,9 @@ pub mod amm {
         ctx.accounts.initialize_amm(&ctx.bumps)
     }
     pub fn deposit(ctx: Context<Deposit>, amount_a: u64, amount_b: u64) -> Result<()> {
+        // FIXED MISTAKE: Previously this called 'deposit(ctx, ...)' which was a recursive call
+        // to this same function, causing a stack overflow or infinite loop.
+        // It must call the implementation on the accounts struct.
         ctx.accounts.deposit(amount_a, amount_b)
     }
 

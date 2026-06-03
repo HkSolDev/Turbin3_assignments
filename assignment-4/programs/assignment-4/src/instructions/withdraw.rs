@@ -11,6 +11,7 @@ pub struct WithDraw<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
+    // FIXED MISTAKE: Added Box<> here as well to prevent stack overflow.
     #[account(
         mut,
         has_one = vault_a,
@@ -85,11 +86,14 @@ impl<'info> WithDraw<'info> {
             authority: self.amm.to_account_info(),
         };
 
+        // FIXED MISTAKE: CpiContext expects the Program ID (Pubkey), not AccountInfo.
+        // Use self.token_program.key() instead of .to_account_info().
         let cpi_ctx_a =
             CpiContext::new_with_signer(self.token_program.key(), cpi_acc_a, signer_seeds);
         token_interface::transfer_checked(cpi_ctx_a, amount_a, self.mint_a.decimals)?;
 
-        // Transfer Token B to user
+        // FIXED MISTAKE: Previously, Token B transfer was using Token A's accounts
+        // (vault_a, user_token_a, mint_a). Corrected to use Token B assets.
         let cpi_acc_b = TransferChecked {
             from: self.vault_b.to_account_info(),
             to: self.user_token_b.to_account_info(),

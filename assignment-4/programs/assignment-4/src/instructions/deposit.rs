@@ -10,6 +10,9 @@ pub struct Deposit<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
+    // FIXED MISTAKE: Added Box<> to large accounts.
+    // Solana stack is only 4KB. Without Box, this struct (with ~10 accounts)
+    // exceeds the limit, causing a "Stack offset exceeded" error during build.
     #[account(mut, has_one = vault_a, has_one = vault_b, has_one = lp_mint)]
     pub amm: Box<Account<'info, Amm>>,
 
@@ -25,6 +28,9 @@ pub struct Deposit<'info> {
     #[account(mut, constraint = user_token_b.mint == amm.mint_b && user_token_b.owner == signer.key())]
     pub user_token_b: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    // FIXED MISTAKE: 'mint_authority' is a COption<Pubkey>.
+    // You cannot compare it directly with 'amm.key()' (which is a Pubkey).
+    // Use .contains() to check if the COption holds that key.
     #[account(mut, constraint = lp_mint.mint_authority.contains(&amm.key()) )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
 
@@ -120,6 +126,9 @@ impl<'info> Deposit<'info> {
             authority: self.amm.to_account_info(),
         };
 
+        // FIXED MISTAKE: Previously used 'self.signer.key().as_ref()' directly in seeds.
+        // This creates a temporary value that is dropped immediately, causing a borrow error.
+        // By binding to 'signer_key', we keep the value alive for the 'seeds' array.
         let signer_key = self.signer.key();
         let seeds: &[&[&[u8]]] = &[&[Amm::SEED_PREFIX, signer_key.as_ref(), &[self.amm.bump]]];
 
